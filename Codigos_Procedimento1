@@ -1,0 +1,87 @@
+1. Configuração do Pool de Conexões no GlassFish
+
+asadmin> create-jdbc-connection-pool --datasourceclassname com.microsoft.sqlserver.jdbc.SQLServerDataSource --restype javax.sql.DataSource --property driverClass=com.microsoft.sqlserver.jdbc.SQLServerDriver:portNumber=1433:password=loja:user=loja:serverName=localhost:databaseName=loja:trustServerCertificate=true:URL="jdbc\\:sqlserver\\://localhost\\:1433\\;databaseName\\=loja\\;encrypt\\=true\\;trustServerCertificate\\=true\\;"
+asadmin> ping-connection-pool SQLServerPool
+asadmin> create-jdbc-resource --connectionpoolid SQLServerPool jdbc/loja
+
+2. Configuração do Arquivo persistence.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="1.0"
+  xmlns="http://java.sun.com/xml/ns/persistence"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_1_0.xsd">
+    <persistence-unit name="CadastroEE-ejbPU" transaction-type="JTA">
+        <jta-data-source>jdbc/loja</jta-data-source>
+        <exclude-unlisted-classes>false</exclude-unlisted-classes>
+        <properties/>
+    </persistence-unit>
+</persistence>
+
+3. Exemplo de Código para a Classe ProdutoFacadeLocal
+
+package cadastroee.controller;
+
+import jakarta.ejb.Local;
+import cadastroee.model.Produto;
+
+@Local
+public interface ProdutoFacadeLocal {
+    void create(Produto produto);
+    void edit(Produto produto);
+    void remove(Produto produto);
+    Produto find(Object id);
+    List<Produto> findAll();
+}
+
+4. Exemplo de Código para o Servlet ServletProduto
+
+package cadastroee.servlets;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ejb.EJB;
+import cadastroee.controller.ProdutoFacadeLocal;
+import cadastroee.model.Produto;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.List;
+
+@WebServlet("/ServletProduto")
+public class ServletProduto extends HttpServlet {
+
+    @EJB
+    private ProdutoFacadeLocal facade;
+
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        response.setContentType("text/html;charset=UTF-8");
+        try (PrintWriter out = response.getWriter()) {
+            List<Produto> produtos = facade.findAll();
+            out.println("<html><body>");
+            out.println("<h1>Lista de Produtos</h1>");
+            out.println("<ul>");
+            for (Produto produto : produtos) {
+                out.println("<li>" + produto.getNome() + " - " + produto.getPrecoVenda() + "</li>");
+            }
+            out.println("</ul>");
+            out.println("</body></html>");
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        processRequest(request, response);
+    }
+
+    @Override
+    public String getServletInfo() {
+        return "Servlet que lista produtos";
+    }
+}
+
+
